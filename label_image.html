@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<style>
+		html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,/* ol,ul,li,*/
+			fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}html{height:100%}img{vertical-align:top;filter:blur(0px);-webkit-touch-callout:none;-webkit-user-select:none;-khtml-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-transform:translate3d(0,0,0)}body{line-height:1}blockquote,q{quotes:none none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outline:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}a{text-decoration:none}input[type="text"],input[type="email"],textarea,button{-webkit-appearance:none}input[type="text"],input[type="email"],textarea,select,button{-webkit-border-radius:0;border-radius:0}
+		html, body {
+			width: 100%;
+			height: 100%;
+			margin: 0;
+			overflow: hidden;
+		}
+		html {
+			position: fixed;
+			width: 100%;
+			overflow: hidden;
+		}
+		* {
+			box-sizing: border-box;
+			user-select: none;
+		}
+		img {
+			-webkit-transform: translate3d(0,0,0);
+		}
+		.container {
+			display: flex;
+		}
+		.doodle_wrap {
+			width: 60%;
+			border: 1px solid #333;
+			position: relative;
+		}
+		.tool_wrap {
+			width: 40%;
+			padding: 20px;
+		}
+		canvas {
+			vertical-align: top;
+		}
+		.cvs1, .root_canvas {
+			width: 100%;
+			height: auto;
+		}
+		.doodle_wrap button {
+			background-color: #ccc;
+		}
+		.tool_wrap.disable, .cvs1.disable {
+			pointer-events: none;
+		}
+		.cvs1, .temp_canvas {
+			position: absolute;
+			top: 0;
+			left: 0;
+		}
+		.temp_canvas.move {
+			border: 1px dashed #00f;
+		    cursor: move;
+		}
+		.temp_canvas.move ~ button {
+			position: absolute;
+		}
+		.tool_bnt.active {
+			background-color: #333;
+			color: #fff;
+			border: 0;
+		}
+		.color_btn {
+			display: inline-block;
+			width: 20px;
+			height: 20px;
+			border-radius: 50%;
+			padding: 0;
+			border-color: #fff;
+		}
+		.color_btn.active {
+			border-color: #f00;
+		}
+		.fw700 {
+			font-weight: 700;
+		}
+		.mt50 {
+			margin-top: 50px;
+		}
+		.mt20 {
+			margin-top: 20px;
+		}
+		.eraser_obj {
+			border: 1px solid #f00;
+			position: absolute;
+			pointer-events: none;
+			display: none;
+			width: 20px;
+			height: 20px;
+		}
+		.file_wrap.hide {
+			display: none;
+		}
+		.file_wrap.hide + div {
+			margin-top: 0;
+		}
+		@media (max-width: 767px) {
+			.container {
+				display: block;
+			}
+			.doodle_wrap, .tool_wrap {
+				width: 100%;
+			}
+			.mt50 {
+				margin-top: 20px;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="doodle_wrap">
+			<div class="eraser_obj"></div>
+			<canvas class="root_canvas"></canvas>
+			<canvas class="cvs1"></canvas>
+		</div>
+		<div class="tool_wrap">
+			<div class="file_wrap">
+				<span class="fw700">檔案上傳：</span>
+				<!-- <input type="file" id="input" class="mt20" accept="image/*;" capture="camera"> -->
+				<input type="file" id="input" class="mt20" accept="image/*;">
+				<div class="url"></div>
+			</div>
+			<div class="mt50">
+				<button class="tool_bnt polygon">多邊形</button>
+				<button class="tool_bnt rect">矩形</button>
+				<button class="tool_bnt pencil">畫筆</button>
+				<button class="tool_bnt ellipse">橢圓形</button>
+				<button class="tool_bnt eraser">橡皮擦</button>
+			</div>
+			<div class="color_picker mt50">
+				<button class="color_btn" style="background-color: #880015;"></button>
+				<button class="color_btn" style="background-color: #ED1C24;"></button>
+				<button class="color_btn" style="background-color: #FF7F27;"></button>
+				<button class="color_btn" style="background-color: #FFF200;"></button>
+				<button class="color_btn" style="background-color: #22B14C;"></button>
+				<button class="color_btn" style="background-color: #00A2E8;"></button>
+				<button class="color_btn" style="background-color: #3F48CC;"></button>
+				<button class="color_btn" style="background-color: #A349A4;"></button>
+			</div>
+		</div>
+	</div>
+<script>
+function Doodle(element,args){
+	var _ = this;
+	_.args = {
+		width: args.width||300,
+		height: args.height||150,
+		lineWidth: args.lineWidth||1,
+		pen_color: args.pen_color||'#000',
+		root_canvas: args.root_canvas||_,
+		is_root: args.is_root===undefined?true:false,
+		polygon_init: args.polygon_init
+	};
+	_.mode = args.mode;
+	_.tool_wrap = $('.tool_wrap');
+	_.tool_bnt = $('.tool_bnt');
+	_.color_picker = $('.color_btn');
+	_.eraser_obj = $('.eraser_obj');
+	_.c = typeof element=='object'?element:document.querySelector(element);
+	_.$c = $(_.c);
+	_.c.width = _.args.width;
+	_.c.height = _.args.height;
+	_.ctx = _.c.getContext('2d');
+	_.ctx.lineWidth = _.args.lineWidth;
+	_.ctx.strokeStyle = _.args.pen_color;
+	_.document = $(document);
+	_.$w = $(window);
+	_.polygon_start = false;
+	_.polygon_path_arr = new Array();
+	_.event_arr = ['click.polygon','mousedown.rect touchstart.rect','mousedown.ellipse touchstart.ellipse','mousedown.pencil touchstart.pencil','mousemove.eraser touchmove.eraser','mousedown.eraser touchstart.eraser'];
+	_.tool_bnt.on('click',function(e){
+		$(this).addClass('active').siblings('.active').removeClass('active');
+		// _.$c.unbind('click touchstart mousemove');
+		_.eraser_obj.hide();
+		if(this.classList.contains('polygon')){
+			_.mode ='polygon';
+			var eve = '';
+			_.$c.unbind(_.unbind_event(0));
+			_.$c.on(_.event_arr[0],function(e){
+				_.set_position(e);
+				_.polygon(e);
+			});
+		}
+		else if(this.classList.contains('rect')){
+			_.mode ='rect';
+			_.$c.unbind(_.unbind_event(1));
+			_.$c.on(_.event_arr[1],function(e){
+				_.set_position(e);
+				_.polygon(e);
+			});
+		}
+		else if(this.classList.contains('ellipse')){
+			_.mode ='ellipse';
+			_.$c.unbind(_.unbind_event(2));
+			_.$c.on(_.event_arr[2],function(e){
+				_.set_position(e);
+				_.polygon(e);
+			});
+		}
+		else if(this.classList.contains('pencil')){
+			_.mode ='pencil';
+			_.$c.unbind(_.unbind_event(3));
+			_.$c.on(_.event_arr[3],function(e){
+				_.set_position(e);
+				_.polygon(e);
+			});
+		}
+		else if(this.classList.contains('eraser')){
+			_.mode ='eraser';
+			_.eraser_obj.show();
+			_.$c.unbind(_.unbind_event(4));
+			_.$c.on(_.event_arr[4],function(e){
+				_.set_position(e);
+				_.eraser_obj.css({
+					'left': (_.X - 10) + 'px',
+					'top': (_.Y - 10) + 'px'
+				});
+			});
+			_.$c.on(_.event_arr[5],function(e){
+				_.set_position(e);
+				_.ctx.clearRect(_.X-10,_.Y-10,20,20);
+				_.$c.on('mousemove.clear_move touchmove.clear_move',function(event){
+					_.set_position(event);
+					_.ctx.clearRect(_.set_position_1(event,'X')-10,_.set_position_1(event,'Y')-10,20,20);
+				});
+				_.$c.one('mouseup touchend',function(e){
+					_.$c.unbind('mousemove.clear_move touchmove.clear_move');
+				});
+			});
+		}
+	});
+	if(!_.args.is_root) {
+		_.tool_wrap.addClass('disable');
+		_.args.root_canvas.$c.addClass('disable');
+		_.polygon_init([_.args.polygon_init[0], _.args.polygon_init[1]]);
+		var c_obj = [_.args.root_canvas.$c, _.$c];
+		c_obj.forEach(function(item){
+			item.on(_.switch_mode(_.mode),function(e){
+				_.set_position(e);
+				(_.mode=='pencil'||_.mode=='polygon')&&_.polygon(e);
+				_.mode=='rect'&&_.rect(e);
+				_.mode=='ellipse'&&_.ellipse(e);
+				c_obj[e.type=='touchmove'?1:0].unbind('mouseup touchend');
+			});
+		});
+		if(_.mode=='pencil'||_.mode=='rect'||_.mode=='ellipse'){
+			c_obj.forEach(function(item){
+				item.one('mouseup touchend',function(e){
+					_.$c.unbind(_.switch_mode(_.mode));
+					if(_.mode=='pencil'){
+						_.polygon_start = false;
+						_.polygon_cls = true;
+						_.polygon_close();
+					}else if(_.mode=='rect'){
+						_.rect_close();
+					}else if(_.mode=='ellipse'){
+						_.ellipse_close();
+					}
+				});
+			});
+		}
+	}
+	_.color_picker.on('click',function(){
+		_.args.pen_color = this.style.backgroundColor;
+		_.ctx.strokeStyle = _.args.pen_color;
+		$(this).addClass('active').siblings('.active').removeClass('active');
+	});
+}
+Doodle.prototype.unbind_event = function(x){
+	var _ = this;
+	var eve = '';
+	for(var i in _.event_arr){
+		i!=x&&(eve+=_.event_arr[i]+' ');
+	}
+	return eve;
+}
+Doodle.prototype.switch_mode = function(mode){
+	switch(mode) {
+		case 'polygon':
+			return 'click';
+		case 'pencil':
+			return 'mousemove.pencil_move touchmove.pencil_move';
+		case 'rect':
+			return 'mousemove.rect_move touchmove.rect_move';
+		case 'ellipse':
+			return 'mousemove.ellipse_move touchmove.ellipse_move';
+	}
+}
+Doodle.prototype.set_position = function(e){
+	var _ = this;
+	if(e.type=='touchstart'||e.type=='touchmove'){
+		_.X = e.originalEvent.targetTouches[0].clientX;
+		_.Y = e.originalEvent.targetTouches[0].clientY;
+	}else{
+		_.X = e.pageX;
+		_.Y = e.pageY;
+	}
+}
+Doodle.prototype.set_position_1 = function(e,X_Y){
+	var _ = this;
+	if(e.type=='touchstart'||e.type=='touchmove'){
+		return eval('e.originalEvent.targetTouches[0].client'+X_Y);
+	}else{
+		return eval('e.page'+X_Y);
+	}
+}
+Doodle.prototype.temp_canvas = function(){
+	var _ = this;
+	_.temp_can = document.createElement('canvas');
+	_.temp_can.classList.add('temp_canvas');
+	_.$c.after(_.temp_can);
+	_.temp = new Doodle(_.temp_can,{
+		width: _.c.width,
+		height: _.c.height,
+		is_root: false,
+		polygon_init: [_.X, _.Y],
+		root_canvas: _,
+		mode: _.mode,
+		pen_color: _.args.pen_color
+	});
+}
+Doodle.prototype.path_init = function(point){
+	var _ = this;
+	_.polygon_path_arr.push(point);
+}
+Doodle.prototype.polygon_init = function(point){
+	var _ = this;
+	if(point){
+		_.X = point[0];
+		_.Y = point[1];
+	}
+	_.polygon_start = true;
+	_.ctx.beginPath();
+	_.ctx.fillRect(_.X, _.Y, 1, 1);
+	_.path_init(point);
+	_.ctx.closePath();
+	_.ctx.beginPath();
+	_.ctx.moveTo(_.X, _.Y);
+}
+Doodle.prototype.polygon = function(e){
+	var _ = this;
+	if(_.args.is_root)
+		_.temp_canvas();
+	else{
+		if(!_.polygon_start){
+			_.polygon_init();
+		}else {
+			if(_.mode=='polygon'&&_.X<=_.polygon_path_arr[0][0]+10&&_.X>=_.polygon_path_arr[0][0]-10&&_.Y<=_.polygon_path_arr[0][1]+10&&_.Y>=_.polygon_path_arr[0][1]-10) {
+				_.ctx.lineTo(_.polygon_path_arr[0][0], _.polygon_path_arr[0][1]);
+				_.ctx.stroke();
+				_.ctx.closePath();
+				_.polygon_start = false;
+				_.polygon_cls = true;
+				_.polygon_close();
+			}else{
+				_.ctx.lineTo(_.X, _.Y);
+				_.ctx.stroke();
+				_.polygon_path_arr.push([_.X, _.Y]);
+			}
+		}
+	}
+}
+Doodle.prototype.rect = function(e){
+	var _ = this;
+	_.ctx.clearRect(0,0,_.c.width,_.c.height);
+	var x = Math.min.apply(null,[_.polygon_path_arr[0][0], _.X]);
+	var y = Math.min.apply(null,[_.polygon_path_arr[0][1], _.Y]);
+	_.ctx.strokeRect(x, y, Math.abs(_.polygon_path_arr[0][0] - _.X), Math.abs(_.polygon_path_arr[0][1] - _.Y));
+}
+Doodle.prototype.rect_close = function(){
+	var _ = this;
+	_.polygon_path_arr.push([_.X, _.Y]);
+	_.c.width = Math.abs(_.polygon_path_arr[0][0] - _.X);
+	_.c.height = Math.abs(_.polygon_path_arr[0][1] - _.Y);
+	var min_x = Math.min.apply(null,[_.polygon_path_arr[0][0], _.X]);
+	var min_y = Math.min.apply(null,[_.polygon_path_arr[0][1], _.Y]);
+	_.temp_move_canvas(_.c.width, _.c.height, min_x, min_y);
+	_.ctx.strokeRect(0,0,_.c.width,_.c.height);
+	_.temp_move(min_x, min_y);
+}
+Doodle.prototype.ellipse = function(e){
+	var _ = this;
+	_.ctx.clearRect(0,0,_.c.width,_.c.height);
+	_.ctx.beginPath();
+	var X = Math.abs(_.X - _.polygon_path_arr[0][0]);
+	var Y = Math.abs(_.Y - _.polygon_path_arr[0][1]);
+	var min_x = Math.min.apply(null,[_.polygon_path_arr[0][0], _.X]);
+	var min_y = Math.min.apply(null,[_.polygon_path_arr[0][1], _.Y]);
+	_.ctx.ellipse(min_x+X/2, min_y+Y/2, X/2, Y/2, 0, 0, Math.PI*2);
+	_.ctx.stroke();
+}
+Doodle.prototype.ellipse_close = function(){
+	var _ = this;
+	_.polygon_path_arr.push([_.X, _.Y]);
+	_.c.width = Math.abs(_.polygon_path_arr[0][0] - _.X);
+	_.c.height = Math.abs(_.polygon_path_arr[0][1] - _.Y);
+	var min_x = Math.min.apply(null,[_.polygon_path_arr[0][0], _.X]);
+	var min_y = Math.min.apply(null,[_.polygon_path_arr[0][1], _.Y]);
+	_.temp_move_canvas(_.c.width, _.c.height, min_x, min_y);
+	_.ctx.ellipse(_.c.width/2, _.c.height/2, _.c.width/2, _.c.height/2, 0, 0, Math.PI*2);
+	_.ctx.stroke();
+	_.temp_move(min_x, min_y);
+}
+Doodle.prototype.temp_move_canvas = function(w,h,x,y){
+	var _ = this;
+	_.ctx.clearRect(0,0,_.c.width,_.c.height);
+	_.$c.addClass('move').css({
+		left: x + 'px',
+		top: y + 'px'
+	});
+	_.ctx.strokeStyle = _.args.pen_color;
+}
+Doodle.prototype.temp_move = function(x, y){
+	var _ = this;
+	_.check_btn = $('<button>ok</button>');
+	_.delete_btn = $('<button>delete</button>');
+	_.check_btn.css({
+		left: (x + _.$c.outerWidth()) + 'px',
+		top: (y + _.$c.outerHeight()) + 'px'
+	});
+	_.delete_btn.css({
+		left: (x + _.$c.outerWidth() - 50) + 'px',
+		top: (y + _.$c.outerHeight()) + 'px'
+	});
+	_.$c.after(_.check_btn).after(_.delete_btn).unbind('click');
+	_.$c.on('mousedown touchstart',function(e){
+		_.nX = _.set_position_1(e,'X');
+		_.nY = _.set_position_1(e,'Y');
+		_.document.on('mousemove.temp_move touchmove.temp_move',function(event){
+			_.X = _.set_position_1(event,'X');
+			_.Y = _.set_position_1(event,'Y');
+			_.$c.css({
+				left: (parseInt(_.$c.css('left'))+_.X-_.nX)+'px',
+				top: (parseInt(_.$c.css('top'))+_.Y-_.nY)+'px'
+			});
+			_.check_btn.css({
+				left: (parseInt(_.$c.css('left'))+_.X-_.nX+_.$c.outerWidth())+'px',
+				top: (parseInt(_.$c.css('top'))+_.Y-_.nY+_.$c.outerHeight())+'px'
+			});
+			_.delete_btn.css({
+				left: (parseInt(_.$c.css('left'))+_.X-_.nX+_.$c.outerWidth() - 50)+'px',
+				top: (parseInt(_.$c.css('top'))+_.Y-_.nY+_.$c.outerHeight())+'px'
+			});
+			_.nX = _.X;
+			_.nY = _.Y;
+		});
+		_.document.one('mouseup touchend',function(e){
+			_.document.unbind('mousemove.temp_move touchmove.temp_move');
+		});
+	});
+	_.check_btn.on('click',function(){
+		if(_.mode=='polygon'||_.mode=='pencil'){
+			_.polygon_path_arr.forEach(function(item,i){
+				if(i==_.polygon_path_arr.length-1) return false;
+				if(i == 0){
+					_.args.root_canvas.polygon_init([item[0]-x+parseInt(_.$c.css('left')), item[1]-y+parseInt(_.$c.css('top'))]);
+				}else{
+					_.args.root_canvas.ctx.lineTo(item[0]-x+parseInt(_.$c.css('left')), item[1]-y+parseInt(_.$c.css('top')));
+					_.args.root_canvas.ctx.stroke();
+				}
+			});
+		}
+		if(_.mode=='polygon'){
+			_.args.root_canvas.ctx.closePath();
+			_.args.root_canvas.ctx.stroke();
+		}
+		if(_.mode=='rect'){
+			_.args.root_canvas.ctx.strokeRect(parseInt(_.$c.css('left')), parseInt(_.$c.css('top')), _.c.width, _.c.height);
+		}
+		if(_.mode=='ellipse'){
+			var X = Math.abs(_.polygon_path_arr[1][0] - _.polygon_path_arr[0][0]);
+			var Y = Math.abs(_.polygon_path_arr[1][1] - _.polygon_path_arr[0][1]);
+			var min_x = Math.min.apply(null,[_.polygon_path_arr[0][0], _.polygon_path_arr[1][0]]);
+			var min_y = Math.min.apply(null,[_.polygon_path_arr[0][1], _.polygon_path_arr[1][1]]);
+			_.args.root_canvas.ctx.beginPath();
+			_.args.root_canvas.ctx.ellipse(parseInt(_.$c.css('left'))+X/2, parseInt(_.$c.css('top'))+Y/2, X/2, Y/2, 0, 0, Math.PI*2);
+			_.args.root_canvas.ctx.stroke();
+		}
+		_.$c.remove();
+		_.check_btn.remove();
+		_.delete_btn.remove();
+		_.tool_wrap.removeClass('disable');
+		_.args.root_canvas.$c.removeClass('disable');
+	});
+	_.delete_btn.on('click',function(){
+		_.$c.remove();
+		_.check_btn.remove();
+		_.delete_btn.remove();
+		_.tool_wrap.removeClass('disable');
+		_.args.root_canvas.$c.removeClass('disable');
+	});
+}
+Doodle.prototype.polygon_close = function(){
+	var _ = this;
+	_.path_limit = {x0: _.polygon_path_arr[0][0], y0: _.polygon_path_arr[0][1], x1: _.polygon_path_arr[0][0], y1: _.polygon_path_arr[0][1]};
+	_.polygon_path_arr.forEach(function(item,i){
+		_.path_limit = {
+			x0: item[0]>_.path_limit.x0?item[0]:_.path_limit.x0,
+			y0: item[1]>_.path_limit.y0?item[1]:_.path_limit.y0,
+			x1: item[0]<_.path_limit.x1?item[0]:_.path_limit.x1,
+			y1: item[1]<_.path_limit.y1?item[1]:_.path_limit.y1,
+		};
+	});
+	_.c.width = _.path_limit.x0 - _.path_limit.x1;
+	_.c.height = _.path_limit.y0 - _.path_limit.y1;
+	_.temp_move_canvas(_.c.width, _.c.height, _.path_limit.x1, _.path_limit.y1);
+	_.polygon_path_arr.forEach(function(item,i){
+		if(i == 0){
+			_.polygon_init([item[0]-_.path_limit.x1, item[1]-_.path_limit.y1]);
+		}else{
+			_.ctx.lineTo(item[0]-_.path_limit.x1, item[1]-_.path_limit.y1);
+			_.ctx.stroke();
+		}
+	});
+	if(_.mode=='polygon'){
+		_.ctx.closePath();
+		_.ctx.stroke();
+	}
+	_.temp_move(_.path_limit.x1, _.path_limit.y1);
+}
+var $w = $(window);
+input.addEventListener("change",function(){
+	var file = input.files[0];
+	var src = URL.createObjectURL(file);
+	var img = new Image();
+	img.src = src;
+	$('.file_wrap').addClass('hide');
+	img.addEventListener("load", function(){
+		var root_canvas = $('.root_canvas')[0];
+		var ctx = root_canvas.getContext('2d');
+		var doodle_wrap = $('.doodle_wrap');
+		var doodle_wrap_w = doodle_wrap.width();
+		root_canvas.width = doodle_wrap_w;
+		root_canvas.height = doodle_wrap_w/img.naturalWidth*img.naturalHeight;
+		ctx.drawImage(img,0,0,doodle_wrap_w,root_canvas.height);
+		new Doodle('.cvs1',{
+			width: doodle_wrap_w,
+			height: root_canvas.height
+		});
+	});
+});
+</script>
+</body>
+</html>
