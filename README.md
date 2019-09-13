@@ -1,4 +1,4 @@
-# label-image
+# painter
 
 [CODEPEN](https://codepen.io/justin000abc/pen/bGbRmOx)
 
