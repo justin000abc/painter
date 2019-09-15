@@ -232,7 +232,7 @@ function Doodle(element,args){
 					_.set_position(event);
 					_.ctx.clearRect(_.set_position_1(event,'X')-10,_.set_position_1(event,'Y')-10,20,20);
 				});
-				_.$c.one('mouseup touchend',function(e){
+				_.document.one('mouseup touchend',function(e){
 					_.$c.unbind('mousemove.clear_move touchmove.clear_move');
 				});
 			});
